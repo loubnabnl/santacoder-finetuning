@@ -25,12 +25,6 @@ Second, install the required packages. The packages are listed in the `requireme
 $ pip install -r requirements.txt
 ```
 
-Third, you need to configure `accelerate` based on your setup such as the number of GPUs you want to train on.
-
-```
-$ accelerate config
-```
-
 2. Next, take a look at the `run_stack.py` script to get an understanding of how it works. In short, the script does the following:
 
 	- Load the given dataset subset
@@ -46,7 +40,6 @@ Here we will run the script on the *Elixir* subset of the dataset for demonstrat
 ```bash
 #!/usr/bin/env bash
 python train.py \
---output_dir="./wav2vec2-base-timit-asr" \
 --num_train_epochs="30" \
 --per_device_train_batch_size="20" \
 --per_device_eval_batch_size="20" \
@@ -84,8 +77,6 @@ git clone https://huggingface.co/username/your-model-name
 
 Then and add the following files that fully define a SantaCoder checkpoint into the repository. You should have added the following files.
 
-- `preprocessor_config.json`
-- `special_tokens_map.json`
 - `tokenizer_config.json`
 - `vocab.json`
 - `config.json`
