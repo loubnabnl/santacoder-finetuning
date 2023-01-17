@@ -10,7 +10,7 @@ You can use the `run_stack.py` script to run the fine-tuning on a local machine,
 
 For large datasets, we recommend training Santacoder locally instead of in a Google Colab.
 
-1. To begin with, we should clone transformers locally and install all the required packages.
+1. To begin with, we should clone transformers locally, install all the required packages and log to HuggingFace Hub and Weight & Biases.
 
 First, you need to clone this repo with:
 
@@ -23,6 +23,13 @@ Second, install the required packages. The packages are listed in the `requireme
 
 ```
 $ pip install -r requirements.txt
+```
+
+Third, make sure you are logged to HuggingFace Hub and Weights & Biases
+
+```
+huggingface-cli login
+wandb login
 ```
 
 2. Next, take a look at the `run_stack.py` script to get an understanding of how it works. In short, the script does the following:
@@ -39,24 +46,22 @@ Here we will run the script on the *Elixir* subset of the dataset for demonstrat
 
 ```bash
 #!/usr/bin/env bash
-python train.py \
---num_train_epochs="30" \
---per_device_train_batch_size="20" \
---per_device_eval_batch_size="20" \
---evaluation_strategy="steps" \
---save_steps="500" \
---eval_steps="100" \
---logging_steps="50" \
---learning_rate="5e-4" \
---warmup_steps="3000" \
---model_name_or_path="bigcode/santacoder" \
---fp16 \
---dataset_name="bigcode/the-stack" \
---dataset_dir="data/elixir" \
---train_split_name="train" \
---validation_split_name="test" \
---preprocessing_num_workers="$(nproc)" \
---verbose_logging \
+python run_stack.py \
+        --model_path "codeparrot/codeparrot-small" \
+        --dataset_name="bigcode/the-stack" \
+        --subset="data/elixir" \
+        --split="train" \
+        --seq_length 1024 \
+        --max_steps 1000 \
+        --batch_size 8 \
+        --gradient_accumulation_steps 4 \
+        --learning_rate 5e-5 \
+        --num_warmup_steps 100 \
+        --eval_freq 250 \
+        --save_freq 250 \
+        --log_freq 1 \
+        --fp16 \
+        --num_workers="$(nproc)" 
 ```
 
 The resulting model and inference examples can be found [here](https://huggingface.co/bigcode/santacoder-elixir).

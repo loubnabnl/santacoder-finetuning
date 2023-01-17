@@ -7,23 +7,26 @@ import os
 
 import torch
 from datasets import load_dataset
-from tokenizers import AutoTokenizer
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.data.datapipes.iter.combinatorics import ShufflerIterDataPipe
-from transformers import (AutoModelForCausalLM, Trainer, TrainingArguments,
-                          logging, set_seed)
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+    logging,
+    set_seed,
+)
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="bigcode/santacoder")
-    parser.add_argument("--tokenizer_path", type=str, default="bigcode/santacoder")
     parser.add_argument("--dataset_name", type=str, default="bigcode/the-stack")
     parser.add_argument("--subset", type=str, default="data/python")
     parser.add_argument("--split", type=str, default="train")
 
-    parser.add_argument("--max_length", type=int, default=1024)
+    parser.add_argument("--seq_length", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=10000)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8)
@@ -98,52 +101,41 @@ class ConstantLengthDataset(IterableDataset):
                 input_ids = all_token_ids[i : i + self.seq_length]
                 if len(input_ids) == self.seq_length:
                     self.current_size += 1
-                    yield torch.tensor(input_ids)
-
-    def shuffle(self, buffer_size=1000):
-        # torch 1.11 mandatory
-        # this shuffles the sequences in the buffer
-        return ShufflerIterDataPipe(self, buffer_size=buffer_size)
+                    yield {
+                        "input_ids": torch.LongTensor(input_ids),
+                        "labels": torch.LongTensor(input_ids),
+                    }
 
 
 def create_dataloaders(tokenizer, args):
-    train_data = load_dataset(
+    dataset = load_dataset(
         args.dataset_name,
         data_dir=args.subset,
         split=args.split,
         use_auth_token=True,
         num_proc=args.num_workers,
     )
-    data = train_data.train_test_split(test_size=0.005, shuffle=False, seed=args.seed)
-    train_data = data["train"]
-    valid_data = data["test"]
+    dataset = dataset.train_test_split(test_size=0.005, shuffle=False, seed=args.seed)
+    train_data = dataset["train"]
+    valid_data = dataset["test"]
     print(
         f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
     )
-    train_data = train_data.shuffle(buffer_size=args.shuffle_buffer, seed=args.seed)
+    train_data = train_data.shuffle(seed=args.seed)
     train_dataset = ConstantLengthDataset(
-        tokenizer,
-        train_data,
-        infinite=True,
-        seq_length=args.seq_length,
+        tokenizer, train_data, infinite=True, seq_length=args.seq_length
     )
     valid_dataset = ConstantLengthDataset(
-        tokenizer,
-        valid_data,
-        infinite=False,
-        seq_length=args.seq_length,
+        tokenizer, valid_data, infinite=False, seq_length=args.seq_length
     )
-    train_dataset = train_dataset.shuffle(buffer_size=args.shuffle_buffer)
-    train_dataloader = DataLoader(
-        train_dataset, batch_size=args.train_batch_size, shuffle=True
-    )
-    eval_dataloader = DataLoader(valid_dataset, batch_size=args.valid_batch_size)
-    return train_dataloader, eval_dataloader
+    return train_dataset, valid_dataset
 
 
 def run_training(args, train_data, val_data):
 
-    model = AutoModelForCausalLM.from_pretrained(args.model_path, use_auth_token=True)
+    model = AutoModelForCausalLM.from_pretrained(
+        args.model_path, trust_remote_code=True
+    )
     train_data.start_iteration = 0
 
     print(f"Starting main loop")
@@ -152,6 +144,7 @@ def run_training(args, train_data, val_data):
         output_dir=args.output_dir,
         dataloader_drop_last=True,
         evaluation_strategy="steps",
+        num_train_epochs=10,
         max_steps=args.max_steps,
         eval_steps=args.eval_freq,
         save_steps=args.save_freq,
@@ -169,10 +162,7 @@ def run_training(args, train_data, val_data):
     )
 
     trainer = Trainer(
-        model=model,
-        args=training_args,
-        train_dataset=train_data,
-        eval_dataset=val_data,
+        model=model, args=training_args, train_dataset=train_data, eval_dataset=val_data
     )
 
     print("Training...")
@@ -183,9 +173,9 @@ def run_training(args, train_data, val_data):
 
 
 def main(args):
-    tokenizer = AutoTokenizer.from_pretrained(args.tokenizer_path, use_auth_token=True)
-    train_dataloader, eval_dataloader = create_dataloaders(tokenizer, args)
-    run_training(args, train_dataloader, eval_dataloader)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_auth_token=True)
+    train_dataset, eval_dataset = create_dataloaders(tokenizer, args)
+    run_training(args, train_dataset, eval_dataset)
 
 
 if __name__ == "__main__":
