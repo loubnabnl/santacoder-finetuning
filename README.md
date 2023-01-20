@@ -1,18 +1,16 @@
 # Fine-tuning SantaCoder on multiple programming languages 🌍
-Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset.
+Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset. SantaCoder is pre-trained on Python, Java & JavaScript, we suggest fine-tuning on languages close to them, otherwise the model might not converge well.
 
 ## Fine-tuning SantaCoder
 
 ### Setup & Fine-Tuning with The Stack
-We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset. The model has 1B parameters, you can use a local machine with a GPU or train in Google Colab.
+We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset. The code can be adapted to fine-tune on other code datasets. The model has 1B parameters, you can use a local machine with a GPU or train in Google Colab.
 
 You can use the `run_stack.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
 
-For large datasets, we recommend training Santacoder locally instead of in a Google Colab.
+1. To begin with, we should clone the repository locally, install all the required packages and log to HuggingFace Hub and Weight & Biases.
 
-1. To begin with, we should clone transformers locally, install all the required packages and log to HuggingFace Hub and Weight & Biases.
-
-First, you need to clone this repo with:
+First, you can clone this repo with:
 
 ```
 $ git clone https://github.com/bigcode/santacoder-finetuning.git
@@ -47,13 +45,13 @@ Here we will run the script on the *Elixir* subset of the dataset for demonstrat
 ```bash
 #!/usr/bin/env bash
 python run_stack.py \
-        --model_path "codeparrot/codeparrot-small" \
+        --model_path="bigcode/santacoder" \
         --dataset_name="bigcode/the-stack" \
         --subset="data/elixir" \
         --split="train" \
-        --seq_length 1024 \
+        --seq_length 2048 \
         --max_steps 1000 \
-        --batch_size 8 \
+        --batch_size 1 \
         --gradient_accumulation_steps 4 \
         --learning_rate 5e-5 \
         --num_warmup_steps 100 \
