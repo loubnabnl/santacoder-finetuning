@@ -144,7 +144,6 @@ def run_training(args, train_data, val_data):
         output_dir=args.output_dir,
         dataloader_drop_last=True,
         evaluation_strategy="steps",
-        num_train_epochs=10,
         max_steps=args.max_steps,
         eval_steps=args.eval_freq,
         save_steps=args.save_freq,
