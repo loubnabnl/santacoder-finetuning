@@ -68,7 +68,7 @@ class ConstantLengthDataset(IterableDataset):
         chars_per_token=3.6,
     ):
         self.tokenizer = tokenizer
-        self.concat_token_id = tokenizer.bos_token_id
+        self.concat_token_id = tokenizer.eos_token_id if tokenizer.eos_token_id else 49152
         self.dataset = dataset
         self.seq_length = seq_length
         self.infinite = infinite
