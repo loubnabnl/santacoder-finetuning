@@ -16,13 +16,13 @@ from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="bigcode/santacoder")
-    parser.add_argument("--dataset_name", type=str, default="bigcode/the-stack")
+    parser.add_argument("--dataset_name", type=str, default="bigcode/the-stack-dedup")
     parser.add_argument("--subset", type=str, default="data/python")
     parser.add_argument("--split", type=str, default="train")
 
     parser.add_argument("--seq_length", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=10000)
-    parser.add_argument("--batch_size", type=int, default=8)
+    parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8)
     parser.add_argument("--eos_token_id", type=int, default=49152)
 
@@ -37,12 +37,12 @@ def get_args():
     parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--output_dir", type=str, default="./checkpoints")
     parser.add_argument("--log_freq", default=1, type=int)
-    parser.add_argument("--eval_freq", default=250, type=int)
-    parser.add_argument("--save_freq", default=250, type=int)
+    parser.add_argument("--eval_freq", default=1000, type=int)
+    parser.add_argument("--save_freq", default=1000, type=int)
     return parser.parse_args()
 
 
-def chars_token_ratio(data, tokenizer, nb_example=500):
+def chars_token_ratio(data, tokenizer, nb_example=1000):
     """
     Estimate the average number of characters per token in the dataset.
     """

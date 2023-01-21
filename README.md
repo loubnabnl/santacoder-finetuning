@@ -4,7 +4,7 @@ Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple pr
 ## Fine-tuning SantaCoder
 
 ### Setup & Fine-Tuning with The Stack
-We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset. The code can be adapted to fine-tune on other code datasets. The model has 1B parameters, you can use a local machine with a GPU or train in Google Colab.
+We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset (after [near-deduplication](https://huggingface.co/datasets/bigcode/the-stack-dedup)). The code can be adapted to fine-tune on other code datasets. The model has 1B parameters, you can use a local machine with a GPU or train in Google Colab.
 
 You can use the `run_stack.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
 
@@ -39,29 +39,29 @@ wandb login
 	- Run evaluation
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
-Here we will run the script on the *Elixir* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments.
+Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments.
 
 
 ```bash
 #!/usr/bin/env bash
 python run_stack.py \
         --model_path="bigcode/santacoder" \
-        --dataset_name="bigcode/the-stack" \
-        --subset="data/elixir" \
+        --dataset_name="bigcode/the-stack-dedup" \
+        --subset="data/ruby" \
         --split="train" \
         --seq_length 2048 \
-        --max_steps 10000 \
+        --max_steps 30000 \
         --batch_size 2 \
-        --gradient_accumulation_steps 2 \
+        --gradient_accumulation_steps 8 \
         --learning_rate 5e-5 \
-        --num_warmup_steps 100 \
-        --eval_freq 250 \
-        --save_freq 250 \
+        --num_warmup_steps 500 \
+        --eval_freq 3000 \
+        --save_freq 3000 \
         --log_freq 1 \
         --num_workers="$(nproc)" 
 ```
 
-The resulting model and inference examples can be found [here](https://huggingface.co/bigcode/santacoder-elixir).
+The resulting model and inference examples can be found [here](https://huggingface.co/bigcode/santacoder-ruby).
 
 ## How to upload my trained checkpoint
 
