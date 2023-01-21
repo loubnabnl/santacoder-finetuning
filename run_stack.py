@@ -9,14 +9,8 @@ import torch
 from datasets import load_dataset
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import DataLoader
-from transformers import (
-    AutoModelForCausalLM,
-    AutoTokenizer,
-    Trainer,
-    TrainingArguments,
-    logging,
-    set_seed,
-)
+from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
+                          TrainingArguments, logging, set_seed)
 
 
 def get_args():
@@ -30,13 +24,15 @@ def get_args():
     parser.add_argument("--max_steps", type=int, default=10000)
     parser.add_argument("--batch_size", type=int, default=8)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=8)
+    parser.add_argument("--eos_token_id", type=int, default=49152)
 
     parser.add_argument("--learning_rate", type=float, default=5e-5)
     parser.add_argument("--lr_scheduler_type", type=str, default="cosine")
     parser.add_argument("--num_warmup_steps", type=int, default=100)
     parser.add_argument("--weight_decay", type=float, default=0.05)
 
-    parser.add_argument("--fp16", default=False, action="store_true")
+    parser.add_argument("--no_fp16", action="store_false")
+    parser.add_argument("--no_gradient_checkpointing", action="store_false")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--output_dir", type=str, default="./checkpoints")
@@ -44,6 +40,18 @@ def get_args():
     parser.add_argument("--eval_freq", default=250, type=int)
     parser.add_argument("--save_freq", default=250, type=int)
     return parser.parse_args()
+
+
+def chars_token_ratio(data, tokenizer, nb_example=500):
+    """
+    Estimate the average number of characters per token in the dataset.
+    """
+    data = data.select(range(nb_example))
+    tokenized_inputs = tokenizer(data["content"], truncation=False)["input_ids"]
+    all_token_ids = []
+    for tokenized_input in tokenized_inputs:
+        all_token_ids.extend(tokenized_input)
+    return len("".join(data["content"])) / len(all_token_ids)
 
 
 class ConstantLengthDataset(IterableDataset):
@@ -68,7 +76,9 @@ class ConstantLengthDataset(IterableDataset):
         chars_per_token=3.6,
     ):
         self.tokenizer = tokenizer
-        self.concat_token_id = tokenizer.eos_token_id if tokenizer.eos_token_id else 49152
+        self.concat_token_id = (
+            tokenizer.eos_token_id if tokenizer.eos_token_id else args.eos_token_id
+        )
         self.dataset = dataset
         self.seq_length = seq_length
         self.infinite = infinite
@@ -107,7 +117,7 @@ class ConstantLengthDataset(IterableDataset):
                     }
 
 
-def create_dataloaders(tokenizer, args):
+def create_datasets(tokenizer, args):
     dataset = load_dataset(
         args.dataset_name,
         data_dir=args.subset,
@@ -119,22 +129,34 @@ def create_dataloaders(tokenizer, args):
     train_data = dataset["train"]
     valid_data = dataset["test"]
     print(
-        f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
+        f"Size of the train set: {len(train_data)}\n Size of the validation set: {len(valid_data)}"
     )
     train_data = train_data.shuffle(seed=args.seed)
+    chars_per_token = chars_token_ratio(train_data, tokenizer)
+    print(f"The character to token ratio of the dataset is: {chars_per_token:.2f}")
     train_dataset = ConstantLengthDataset(
-        tokenizer, train_data, infinite=True, seq_length=args.seq_length
+        tokenizer,
+        train_data,
+        infinite=True,
+        seq_length=args.seq_length,
+        chars_per_token=chars_per_token,
     )
     valid_dataset = ConstantLengthDataset(
-        tokenizer, valid_data, infinite=False, seq_length=args.seq_length
+        tokenizer,
+        valid_data,
+        infinite=False,
+        seq_length=args.seq_length,
+        chars_per_token=chars_per_token,
     )
     return train_dataset, valid_dataset
 
 
 def run_training(args, train_data, val_data):
-
+    # disable caching mechanism when using gradient checkpointing
     model = AutoModelForCausalLM.from_pretrained(
-        args.model_path, trust_remote_code=True
+        args.model_path,
+        trust_remote_code=True,
+        use_cache=not args.no_gradient_checkpointing,
     )
     train_data.start_iteration = 0
 
@@ -154,8 +176,9 @@ def run_training(args, train_data, val_data):
         lr_scheduler_type=args.lr_scheduler_type,
         warmup_steps=args.num_warmup_steps,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
+        gradient_checkpointing=args.no_gradient_checkpointing,
+        fp16=args.no_gradient_checkpointing,
         weight_decay=args.weight_decay,
-        fp16=args.fp16,
         run_name=f"santacoder-{args.subset}",
         report_to="wandb",
     )
@@ -173,7 +196,7 @@ def run_training(args, train_data, val_data):
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_auth_token=True)
-    train_dataset, eval_dataset = create_dataloaders(tokenizer, args)
+    train_dataset, eval_dataset = create_datasets(tokenizer, args)
     run_training(args, train_dataset, eval_dataset)
 
 
