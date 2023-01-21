@@ -1,10 +1,10 @@
 # Fine-tuning SantaCoder on multiple programming languages 🌍
-Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset. SantaCoder is pre-trained on Python, Java & JavaScript, we suggest fine-tuning on languages close to them, otherwise the model might not converge well.
+Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset. SantaCoder is 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on languages close to them, otherwise the model might not converge well.
 
 ## Fine-tuning SantaCoder
 
 ### Setup & Fine-Tuning with The Stack
-We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset (after [near-deduplication](https://huggingface.co/datasets/bigcode/the-stack-dedup)). The code can be adapted to fine-tune on other code datasets. The model has 1B parameters, you can use a local machine with a GPU or train in Google Colab.
+We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset (after [near-deduplication](https://huggingface.co/datasets/bigcode/the-stack-dedup)). The code can be adapted to fine-tune on other code datasets. Check this [repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main/finetuning) for fine-tuning models on some code tasks. You can also find other resources in [CodeParrot repository](https://github.com/huggingface/transformers/tree/main/examples/research_projects/codeparrot), such as training code models with `accelerate` and [Megatron-LM](https://github.com/NVIDIA/Megatron-LM).
 
 You can use the `run_stack.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
 
@@ -39,7 +39,7 @@ wandb login
 	- Run evaluation
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
-Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments.
+Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments. If the model still doesn't fit in your memory use `batch_size` 1 and reduce `seq_length`.
 
 
 ```bash
