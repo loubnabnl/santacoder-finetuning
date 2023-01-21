@@ -39,7 +39,7 @@ wandb login
 	- Run evaluation
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
-Here we will run the script on the *Elixir* subset of the dataset for demonstration purposes.
+Here we will run the script on the *Elixir* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments.
 
 
 ```bash
@@ -50,15 +50,14 @@ python run_stack.py \
         --subset="data/elixir" \
         --split="train" \
         --seq_length 2048 \
-        --max_steps 1000 \
-        --batch_size 1 \
-        --gradient_accumulation_steps 4 \
+        --max_steps 10000 \
+        --batch_size 2 \
+        --gradient_accumulation_steps 2 \
         --learning_rate 5e-5 \
         --num_warmup_steps 100 \
         --eval_freq 250 \
         --save_freq 250 \
         --log_freq 1 \
-        --fp16 \
         --num_workers="$(nproc)" 
 ```
 
