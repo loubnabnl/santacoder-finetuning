@@ -1,9 +1,9 @@
 # Fine-tuning SantaCoder on multiple programming languages 🌍
 Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset. SantaCoder is 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on languages close to them, otherwise the model might not converge well.
 
-## Fine-tuning SantaCoder
 
-### Setup & Fine-Tuning with The Stack
+## Setup & Fine-Tuning with The Stack
+
 We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset (after [near-deduplication](https://huggingface.co/datasets/bigcode/the-stack-dedup)). The code can be adapted to fine-tune on other code datasets. Check this [repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main/finetuning) for fine-tuning models on some code tasks. You can also find other resources in [CodeParrot repository](https://github.com/huggingface/transformers/tree/main/examples/research_projects/codeparrot), such as training code models with `accelerate` and [Megatron-LM](https://github.com/NVIDIA/Megatron-LM).
 
 You can use the `run_stack.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
@@ -88,7 +88,7 @@ Then and add the following files that fully define a SantaCoder checkpoint into 
 - `pytorch_model.bin`
 - modleing files (see below)
 
-You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main). Santacoder currently has a custom [modeling files](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt` so they are saved with the checkpoints.
+You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main). Santacoder currently has a custom [modeling file](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) + config file on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt`.
 
 Having added the above files, you should run the following to push files to your model repository.  
 ```
