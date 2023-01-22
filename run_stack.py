@@ -9,8 +9,15 @@ import torch
 from datasets import load_dataset
 from torch.utils.data import IterableDataset
 from torch.utils.data.dataloader import DataLoader
-from transformers import (AutoModelForCausalLM, AutoTokenizer, Trainer,
-                          TrainingArguments, logging, set_seed)
+from tqdm import tqdm
+from transformers import (
+    AutoModelForCausalLM,
+    AutoTokenizer,
+    Trainer,
+    TrainingArguments,
+    logging,
+    set_seed,
+)
 
 
 def get_args():
@@ -19,6 +26,9 @@ def get_args():
     parser.add_argument("--dataset_name", type=str, default="bigcode/the-stack-dedup")
     parser.add_argument("--subset", type=str, default="data/python")
     parser.add_argument("--split", type=str, default="train")
+    parser.add_argument("--size_valid_set", type=int, default=4000)
+    parser.add_argument("--streaming", action="store_true")
+    parser.add_argument("--shuffle_buffer", type=int, default=5000)
 
     parser.add_argument("--seq_length", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=10000)
@@ -42,16 +52,16 @@ def get_args():
     return parser.parse_args()
 
 
-def chars_token_ratio(data, tokenizer, nb_example=1000):
+def chars_token_ratio(dataset, tokenizer, nb_examples=400):
     """
     Estimate the average number of characters per token in the dataset.
     """
-    data = data.select(range(nb_example))
-    tokenized_inputs = tokenizer(data["content"], truncation=False)["input_ids"]
-    all_token_ids = []
-    for tokenized_input in tokenized_inputs:
-        all_token_ids.extend(tokenized_input)
-    return len("".join(data["content"])) / len(all_token_ids)
+    total_characters, total_tokens = 0, 0
+    for _, example in tqdm(zip(range(nb_examples), iter(dataset)), total=nb_examples):
+        total_characters += len(example["content"])
+        total_tokens += len(tokenizer(example["content"]).tokens())
+
+    return total_characters / total_tokens
 
 
 class ConstantLengthDataset(IterableDataset):
@@ -123,15 +133,21 @@ def create_datasets(tokenizer, args):
         data_dir=args.subset,
         split=args.split,
         use_auth_token=True,
-        num_proc=args.num_workers,
+        num_proc=args.num_workers if not args.streaming else None,
+        streaming=args.streaming,
     )
-    dataset = dataset.train_test_split(test_size=0.005, shuffle=False, seed=args.seed)
-    train_data = dataset["train"]
-    valid_data = dataset["test"]
-    print(
-        f"Size of the train set: {len(train_data)}\n Size of the validation set: {len(valid_data)}"
-    )
-    train_data = train_data.shuffle(seed=args.seed)
+    if args.streaming:
+        print("Loading the dataset in streaming mode")
+        valid_data = dataset.take(args.size_valid_set)
+        train_data = dataset.skip(args.size_valid_set)
+        train_data = train_data.shuffle(buffer_size=args.shuffle_buffer, seed=args.seed)
+    else:
+        dataset = dataset.train_test_split(test_size=0.005, seed=args.seed)
+        train_data = dataset["train"]
+        valid_data = dataset["test"]
+        print(
+            f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
+        )
     chars_per_token = chars_token_ratio(train_data, tokenizer)
     print(f"The character to token ratio of the dataset is: {chars_per_token:.2f}")
     train_dataset = ConstantLengthDataset(
@@ -152,6 +168,7 @@ def create_datasets(tokenizer, args):
 
 
 def run_training(args, train_data, val_data):
+    print("Loading the model")
     # disable caching mechanism when using gradient checkpointing
     model = AutoModelForCausalLM.from_pretrained(
         args.model_path,
