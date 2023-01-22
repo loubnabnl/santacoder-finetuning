@@ -1,4 +1,3 @@
-transformers==4.25.1
 git+https://github.com/huggingface/transformers.git@12313838d33373d06d35b48c3c501fa832f16443
 datasets==2.7.0
 wandb==0.13.1
