@@ -13,14 +13,14 @@ You can use the `run_stack.py` script to run the fine-tuning on a local machine,
 First, you can clone this repo with:
 
 ```
-$ git clone https://github.com/bigcode/santacoder-finetuning.git
-$ cd santacoder-finetuning
+git clone https://github.com/bigcode/santacoder-finetuning.git
+cd santacoder-finetuning
 ```
 
 Second, install the required packages. The packages are listed in the `requirements.txt` file and can be installed with
 
 ```
-$ pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
 Third, make sure you are logged to HuggingFace Hub and Weights & Biases
@@ -39,7 +39,10 @@ wandb login
 	- Run evaluation
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
-Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments. If the model still doesn't fit in your memory use `batch_size` 1 and reduce `seq_length`.
+Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that:
+- Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments. 
+- If the model still doesn't fit in your memory use `batch_size` 1 and reduce `seq_length` to 1024 for example.
+- If you want to use [streaming](https://huggingface.co/docs/datasets/stream) and avoid downloading the entire dataset, add the flag `streaming`.
 
 
 ```bash
@@ -80,9 +83,12 @@ git clone https://huggingface.co/username/your-model-name
 Then and add the following files that fully define a SantaCoder checkpoint into the repository. You should have added the following files.
 
 - `tokenizer_config.json`
-- `vocab.json`
+- `tokenizer.json`
 - `config.json`
 - `pytorch_model.bin`
+- modleing files (see below)
+
+You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main). Santacoder currently has a custom [modeling files](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt` so they are saved with the checkpoints.
 
 Having added the above files, you should run the following to push files to your model repository.  
 ```
