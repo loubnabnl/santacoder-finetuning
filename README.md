@@ -89,7 +89,7 @@ python train.py \
 
 The resulting model can be found [here](https://huggingface.co/loubnabnl/santacoder-code-to-text) with an associated [space](https://huggingface.co/spaces/loubnabnl/santa-explains-code).
 
-** Can I use another Model**: Yes! you can use other CLM models on the hub such as GPT2, CodeParrot, CodeGen, InCoder... Just make sure to change the `seq_length` and `eos_token_id` arguments.
+**Can I use another Model**: Yes! you can use other CLM models on the hub such as GPT2, CodeParrot, CodeGen, InCoder... Just make sure to change the `seq_length` and `eos_token_id` arguments.
 
 ## How to upload my trained checkpoint
 
