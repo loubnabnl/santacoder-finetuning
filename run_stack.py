@@ -194,7 +194,7 @@ def run_training(args, train_data, val_data):
         warmup_steps=args.num_warmup_steps,
         gradient_accumulation_steps=args.gradient_accumulation_steps,
         gradient_checkpointing=args.no_gradient_checkpointing,
-        fp16=args.no_gradient_checkpointing,
+        fp16=args.no_fp16,
         weight_decay=args.weight_decay,
         run_name=f"santacoder-{args.subset}",
         report_to="wandb",
