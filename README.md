@@ -40,7 +40,7 @@ wandb login
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
 Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that:
-- Mixed Precision and Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_fp16` and `no_gradient_checkpointing` arguments. 
+- Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_gradient_checkpointing` argument. Note that Mixed precision is disabled with the `no_fp16` flag due to some issues we noticed when using it, you can enable it by removing that argument.
 - If the model still doesn't fit in your memory use `batch_size` 1 and reduce `seq_length` to 1024 for example.
 - If you want to use [streaming](https://huggingface.co/docs/datasets/stream) and avoid downloading the entire dataset, add the flag `streaming`.
 
@@ -61,7 +61,8 @@ python run_stack.py \
         --eval_freq 3000 \
         --save_freq 3000 \
         --log_freq 1 \
-        --num_workers="$(nproc)" 
+        --num_workers="$(nproc)" \
+	--no_fp16
 ```
 
 The resulting model and inference examples can be found [here](https://huggingface.co/bigcode/santacoder-ruby).
