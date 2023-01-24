@@ -24,11 +24,13 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="bigcode/santacoder")
     parser.add_argument("--dataset_name", type=str, default="bigcode/the-stack-dedup")
-    parser.add_argument("--subset", type=str, default="data/python")
+    parser.add_argument("--subset", type=str, default="data")
     parser.add_argument("--split", type=str, default="train")
     parser.add_argument("--size_valid_set", type=int, default=4000)
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--shuffle_buffer", type=int, default=5000)
+    parser.add_argument("--data_column", type=str, default="content")
+
 
     parser.add_argument("--seq_length", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=10000)
@@ -52,14 +54,14 @@ def get_args():
     return parser.parse_args()
 
 
-def chars_token_ratio(dataset, tokenizer, nb_examples=400):
+def chars_token_ratio(dataset, tokenizer, data_column, nb_examples=400):
     """
     Estimate the average number of characters per token in the dataset.
     """
     total_characters, total_tokens = 0, 0
     for _, example in tqdm(zip(range(nb_examples), iter(dataset)), total=nb_examples):
-        total_characters += len(example["content"])
-        total_tokens += len(tokenizer(example["content"]).tokens())
+        total_characters += len(example[data_column])
+        total_tokens += len(tokenizer(example[data_column]).tokens())
 
     return total_characters / total_tokens
 
@@ -84,6 +86,7 @@ class ConstantLengthDataset(IterableDataset):
         seq_length=1024,
         num_of_sequences=1024,
         chars_per_token=3.6,
+        content_field="content",
     ):
         self.tokenizer = tokenizer
         self.concat_token_id = (
@@ -94,7 +97,7 @@ class ConstantLengthDataset(IterableDataset):
         self.infinite = infinite
         self.current_size = 0
         self.max_buffer_size = seq_length * chars_per_token * num_of_sequences
-        self.content_field = "content"
+        self.content_field = content_field
 
     def __iter__(self):
         iterator = iter(self.dataset)
@@ -148,7 +151,7 @@ def create_datasets(tokenizer, args):
         print(
             f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
         )
-    chars_per_token = chars_token_ratio(train_data, tokenizer)
+    chars_per_token = chars_token_ratio(train_data, tokenizer, args.data_column)
     print(f"The character to token ratio of the dataset is: {chars_per_token:.2f}")
     train_dataset = ConstantLengthDataset(
         tokenizer,
@@ -156,6 +159,7 @@ def create_datasets(tokenizer, args):
         infinite=True,
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
+        content_field=args.data_column,
     )
     valid_dataset = ConstantLengthDataset(
         tokenizer,
@@ -163,6 +167,7 @@ def create_datasets(tokenizer, args):
         infinite=False,
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
+        content_field=args.data_column,
     )
     return train_dataset, valid_dataset
 
