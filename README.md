@@ -1,14 +1,14 @@
-# Fine-tuning SantaCoder on multiple programming languages 🌍
-Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on multiple programming languages for Code Generation using [The Stack](https://huggingface.co/bigcode/the-stack) dataset. SantaCoder is 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on languages close to them, otherwise the model might not converge well.
+# Fine-tuning SantaCoder for Code/Text Generation💻
+Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on Code and Text Generation datasets. For example on new programming languages from [The Stack](https://huggingface.co/bigcode/the-stack) dataset, or on a code-to-text dataset like [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text). SantaCoder is a 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on programming languages close to them, otherwise, the model might not converge well.
 
 
 ## Setup & Fine-Tuning with The Stack
 
-We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on one of the languages of [The Stack](https://huggingface.co/bigcode/the-stack) dataset (after [near-deduplication](https://huggingface.co/datasets/bigcode/the-stack-dedup)). The code can be adapted to fine-tune on other code datasets. Check this [repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main/finetuning) for fine-tuning models on some code tasks. You can also find other resources in [CodeParrot repository](https://github.com/huggingface/transformers/tree/main/examples/research_projects/codeparrot), such as training code models with `accelerate` and [Megatron-LM](https://github.com/NVIDIA/Megatron-LM).
+We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on code/text datasets such as [The Stack](https://huggingface.co/bigcode/the-stack) dataset. Check this [repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main/finetuning) for fine-tuning models on other code tasks such as code classification. 
 
-You can use the `run_stack.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
+You can use the `train.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
 
-1. To begin with, we should clone the repository locally, install all the required packages and log to HuggingFace Hub and Weight & Biases.
+1. To begin with, we should clone the repository locally, install all the required packages and log into HuggingFace Hub and Weight & Biases.
 
 First, you can clone this repo with:
 
@@ -30,9 +30,9 @@ huggingface-cli login
 wandb login
 ```
 
-2. Next, take a look at the `run_stack.py` script to get an understanding of how it works. In short, the script does the following:
+2. Next, take a look at the `train.py` script to get an understanding of how it works. In short, the script does the following:
 
-	- Load the given dataset subset
+	- Load the given dataset 
 	- Load the model with given hyperparameters
 	- Pre-process the dataset to input into the model
 	- Run training
@@ -40,17 +40,17 @@ wandb login
 
 3. The following examples show how you can launch fine-tuning for The Stack dataset. 
 Here we will run the script on the *Ruby* subset of the dataset for demonstration purposes. Note that:
-- Gradient Checkpointing are enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_gradient_checkpointing` argument. Note that Mixed precision is disabled with the `no_fp16` flag due to some issues we noticed when using it, you can enable it by removing that argument.
+- Gradient Checkpointing is enabled by default and the caching mechanism is disabled to save memory. If you want to disable them call `no_gradient_checkpointing` argument. Note that Mixed precision is disabled with the `no_fp16` flag due to some issues we noticed when using it, you can enable it by removing that argument.
 - If the model still doesn't fit in your memory use `batch_size` 1 and reduce `seq_length` to 1024 for example.
 - If you want to use [streaming](https://huggingface.co/docs/datasets/stream) and avoid downloading the entire dataset, add the flag `streaming`.
 
 
 ```bash
-#!/usr/bin/env bash
-python run_stack.py \
+python train.py \
         --model_path="bigcode/santacoder" \
         --dataset_name="bigcode/the-stack-dedup" \
-        --subset="data/ruby" \
+        --subset="data/shell" \
+        --data_column "content" \
         --split="train" \
         --seq_length 2048 \
         --max_steps 30000 \
@@ -64,8 +64,30 @@ python run_stack.py \
         --num_workers="$(nproc)" \
 	--no_fp16
 ```
+If you want to fine-tune on other text datasets, you just need to change `data_column` argument to the name of the column containing the code/text you want to fine-tune on.
+ 
+For example, We fine-tuned the model on the [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text) dataset on 4 A100 for 4 hours using the following command:
 
-The resulting model and inference examples can be found [here](https://huggingface.co/bigcode/santacoder-ruby).
+```bash
+python train.py \
+        --model_path="bigcode/santacoder" \
+        --dataset_name="codeparrot/github-jupyter-code-to-text" \
+        --data_column "content" \
+        --split="train" \
+        --seq_length 2048 \
+        --max_steps 1000 \
+        --batch_size 2 \
+        --gradient_accumulation_steps 4 \
+        --learning_rate 5e-5 \
+        --num_warmup_steps 100 \
+        --eval_freq 100 \
+        --save_freq 100 \
+        --log_freq 1 \
+        --num_workers="$(nproc)" \
+        --no_fp16
+```
+
+The resulting model can be found [here](https://huggingface.co/loubnabnl/santacoder-code-to-text) with an associated [space](https://huggingface.co/spaces/loubnabnl/santa-explains-code).
 
 ## How to upload my trained checkpoint
 
@@ -87,9 +109,9 @@ Then and add the following files that fully define a SantaCoder checkpoint into 
 - `tokenizer.json`
 - `config.json`
 - `pytorch_model.bin`
-- modleing files (see below)
+- modeling files (see below)
 
-You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main). Santacoder currently has a custom [modeling file](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) + config file on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt`.
+You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main) and copying them to your directory. Santacoder currently has a custom [modeling file](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) + config file on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt`.
 
 Having added the above files, you should run the following to push files to your model repository.  
 ```
@@ -107,6 +129,7 @@ model it is important to understand:
 All these questions should be answered in a model card which is the first thing people see when 
 visiting your model on the hub under `https://huggingface.co/{your_username}/{your_modelname}`.
 
+Don't hesitate to also create a Gradio Demo for your model to showcase its capabilities 🚀. You can find more information on how to do that [here](https://huggingface.co/docs/hub/spaces-sdks-gradio).
 ## Acknowledgments
 
 This is inspired by the [Wave2vec fine-tuning week](https://github.com/huggingface/transformers/edit/main/examples/research_projects/wav2vec2/) by [Hugging Face](https://huggingface.co/).
