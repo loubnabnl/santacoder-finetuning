@@ -1,5 +1,5 @@
 """
-Fine-Tune SantaCoder on a new language from The Stack
+Fine-Tune SantaCoder on code/text dataset
 """
 
 import argparse
