@@ -6,7 +6,9 @@ Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on Code and Te
 
 We provide code to fine-tune the pre-trained [SantaCoder](https://huggingface.co/bigcode/santacoder) model on code/text datasets such as [The Stack](https://huggingface.co/bigcode/the-stack) dataset. Check this [repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main/finetuning) for fine-tuning models on other code tasks such as code classification. 
 
-You can use the `train.py` script to run the fine-tuning on a local machine, it allows you to launch training using the command line and launch training on multiple GPUs.
+
+- You can use this [**Google Colab**](https://colab.research.google.com/drive/1UMjeXHwOldpLnWjdm1499o2IYy0RgeTw?usp=sharing) by @mrm8488 for the fine-tuning.
+- To train on a local machine, you can use the `train.py` script by following the steps below. It allows you to launch training using the command line on multiple GPUs. 
 
 1. To begin with, we should clone the repository locally, install all the required packages and log into HuggingFace Hub and Weight & Biases.
 
