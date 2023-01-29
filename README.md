@@ -66,6 +66,29 @@ python train.py \
         --num_workers="$(nproc)" \
 	--no_fp16
 ```
+
+To launch the training on multiple GPUs use the following command (we just add python -m torch.distributed.launch \--nproc_per_node number_of_gpus):
+```bash
+python -m torch.distributed.launch \
+        --nproc_per_node number_of_gpus train.py \
+        --model_path="bigcode/santacoder" \
+        --dataset_name="bigcode/the-stack-dedup" \
+        --subset="data/shell" \
+        --data_column "content" \
+        --split="train" \
+        --seq_length 2048 \
+        --max_steps 30000 \
+        --batch_size 2 \
+        --gradient_accumulation_steps 8 \
+        --learning_rate 5e-5 \
+        --num_warmup_steps 500 \
+        --eval_freq 3000 \
+        --save_freq 3000 \
+        --log_freq 1 \
+        --num_workers="$(nproc)" \
+	--no_fp16
+```
+
 If you want to fine-tune on other text datasets, you just need to change `data_column` argument to the name of the column containing the code/text you want to fine-tune on.
  
 For example, We fine-tuned the model on the [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text) dataset on 4 A100 for 4 hours using the following command:
