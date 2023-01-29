@@ -94,7 +94,8 @@ If you want to fine-tune on other text datasets, you just need to change `data_c
 For example, We fine-tuned the model on the [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text) dataset on 4 A100 for 4 hours using the following command:
 
 ```bash
-python train.py \
+python -m torch.distributed.launch \
+        --nproc_per_node number_of_gpus train.py \
         --model_path="bigcode/santacoder" \
         --dataset_name="codeparrot/github-jupyter-code-to-text" \
         --data_column "content" \
