@@ -88,7 +88,7 @@ python -m torch.distributed.launch \
         --num_workers="$(nproc)" \
 	--no_fp16
 ```
-Note: The checkpoints saved from this training command will have argument `use_cache` in the file `config.json` as `False`, for fast inference you should change it to `True` like in this [commit](https://huggingface.co/arjunguha/santacoder-lua/commit/e57b3c39fd29e36ba86970e49618448f5d3d5529). 
+Note: The checkpoints saved from this training command will have argument `use_cache` in the file `config.json` as `False`, for fast inference you should change it to `True` like in this [commit](https://huggingface.co/arjunguha/santacoder-lua/commit/e57b3c39fd29e36ba86970e49618448f5d3d5529) or add it each time you're loading the model. 
 
 If you want to fine-tune on other text datasets, you just need to change `data_column` argument to the name of the column containing the code/text you want to fine-tune on.
  
