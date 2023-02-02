@@ -88,6 +88,7 @@ python -m torch.distributed.launch \
         --num_workers="$(nproc)" \
 	--no_fp16
 ```
+Note: The checkpoints saved from this training command will have argument `use_cache` in the file `config.json` as `False`, for fast inference you should change it to `True` like in this [commit](https://huggingface.co/arjunguha/santacoder-lua/commit/e57b3c39fd29e36ba86970e49618448f5d3d5529). 
 
 If you want to fine-tune on other text datasets, you just need to change `data_column` argument to the name of the column containing the code/text you want to fine-tune on.
  
@@ -138,6 +139,8 @@ Then and add the following files that fully define a SantaCoder checkpoint into 
 - `config.json`
 - `pytorch_model.bin`
 - modeling files (see below)
+
+Note: As previously stated, the checkpoints saved from this training with gradient checkpointing and no caching command will have argument `use_cache` in the file `config.json` as `False`, for fast inference you should change it to `True` like in this [commit](https://huggingface.co/arjunguha/santacoder-lua/commit/e57b3c39fd29e36ba86970e49618448f5d3d5529). 
 
 You can get the tokenizer files by cloning the [model repo](https://huggingface.co/bigcode/santacoder/tree/main) and copying them to your directory. Santacoder currently has a custom [modeling file](https://huggingface.co/bigcode/santacoder/blob/main/modeling_gpt2_mq.py) + config file on the hub, but they will be included with the saved checkpoints if you used the `transformers` branch in `requirements.txt`.
 
