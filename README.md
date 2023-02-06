@@ -1,5 +1,5 @@
 # Fine-tuning SantaCoder for Code/Text Generation💻
-Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on Code and Text Generation datasets. For example on new programming languages from [The Stack](https://huggingface.co/bigcode/the-stack) dataset, or on a code-to-text dataset like [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text). SantaCoder is a 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on programming languages close to them, otherwise, the model might not converge well.
+Fine-tune [SantaCoder](https://huggingface.co/bigcode/santacoder) on Code and Text Generation datasets. For example on new programming languages from [The Stack](https://huggingface.co/datasets/bigcode/the-stack) dataset, or on a code-to-text dataset like [GitHub-Jupyter](https://huggingface.co/datasets/codeparrot/github-jupyter-code-to-text). SantaCoder is a 1B parameters model pre-trained on Python, Java & JavaScript, we suggest fine-tuning on programming languages close to them, otherwise, the model might not converge well.
 
 
 ## Setup & Fine-Tuning with The Stack
