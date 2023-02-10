@@ -6,6 +6,7 @@ import argparse
 import os
 import numpy as np
 import functools
+import timeit
 
 import torch
 from datasets import load_dataset
@@ -261,7 +262,18 @@ def create_datasets(tokenizer, args):
         fim_rate=args.fim_rate,
         fim_spm_rate=args.fim_spm_rate
     )
-    return train_dataset, valid_dataset
+
+    valid_dataset_no_fim = ConstantLengthDataset(
+        tokenizer,
+        valid_data,
+        infinite=False,
+        seq_length=args.seq_length,
+        chars_per_token=chars_per_token,
+        content_field=args.data_column,
+        fim_rate=0.0,
+        fim_spm_rate=0.0
+    )
+    return train_dataset, valid_dataset, valid_dataset_no_fim
 
 
 def run_training(args, train_data, val_data):
@@ -310,9 +322,14 @@ def run_training(args, train_data, val_data):
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_auth_token=True)
-    train_dataset, eval_dataset = create_datasets(tokenizer, args)
-    # data = next(iter(eval_dataset))
-    # breakpoint()
+    train_dataset, eval_dataset, eval_no_fim = create_datasets(tokenizer, args)
+
+    fim_time = timeit.timeit(lambda: next(iter(eval_dataset)), number=5)
+    non_fim_time = timeit.timeit(lambda: next(iter(eval_no_fim)), number=5)
+
+    print(f"FIM time: {fim_time}")
+    print(f"Non-FIM time: {non_fim_time}")
+
     run_training(args, train_dataset, eval_dataset)
 
 
