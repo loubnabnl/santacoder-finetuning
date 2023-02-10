@@ -4,6 +4,8 @@ Fine-Tune SantaCoder on code/text dataset
 
 import argparse
 import os
+import numpy as np
+import functools
 
 import torch
 from datasets import load_dataset
@@ -52,6 +54,9 @@ def get_args():
     parser.add_argument("--log_freq", default=1, type=int)
     parser.add_argument("--eval_freq", default=1000, type=int)
     parser.add_argument("--save_freq", default=1000, type=int)
+
+    parser.add_argument("--fim_rate", type=float, default=0.5)
+    parser.add_argument("--fim_spm_rate", type=float, default=0.5)
     return parser.parse_args()
 
 
@@ -66,6 +71,78 @@ def chars_token_ratio(dataset, tokenizer, data_column, nb_examples=400):
 
     return total_characters / total_tokens
 
+# this is expensive so we cache it
+@functools.lru_cache(maxsize=None)
+def get_fim_token_ids(tokenizer):
+    _, FIM_PREFIX, FIM_MIDDLE, FIM_SUFFIX, FIM_PAD = tokenizer.special_tokens_map['additional_special_tokens']
+    suffix_tok_id, prefix_tok_id, middle_tok_id, pad_tok_id = (tokenizer.vocab[tok] for tok in [FIM_SUFFIX, FIM_PREFIX, FIM_MIDDLE, FIM_PAD])
+    return suffix_tok_id, prefix_tok_id, middle_tok_id, pad_tok_id
+
+
+# Adapted from https://github.com/bigcode-project/Megatron-LM/blob/6c4bf908df8fd86b4977f54bf5b8bd4b521003d1/megatron/data/gpt_dataset.py
+def permute(sample, np_rng, tokenizer, fim_rate=0.5, fim_spm_rate=0.5, truncate_or_pad=True):
+    """
+    Take in a sample (np array w/ size (0,chunklength)) and perform a FIM transformation on it. 
+    Maintain the same sample length (if transform creates a few extra tokens, drop them).
+    """
+
+    suffix_tok_id, prefix_tok_id, middle_tok_id, pad_tok_id, = get_fim_token_ids(tokenizer)
+
+    if np_rng.binomial(1, fim_rate): # sample bernoulli dist
+        contents = tokenizer.decode(sample)
+
+        try:
+            # A boundary can be =0 (prefix will be empty)
+            # a boundary can be =len(contents) (suffix will be empty)
+            # The two boundaries can be equal (middle will be empty)
+            boundaries = list(np_rng.randint(low=0, high=len(contents) + 1, size=2))
+            boundaries.sort()
+        except ValueError as e:
+            print(len(contents), contents)
+            print(e)
+            raise e
+
+        prefix = contents[:boundaries[0]]
+        middle = contents[boundaries[0]:boundaries[1]]
+        suffix = contents[boundaries[1]:]
+
+        prefix = np.array([*tokenizer.encode(prefix)], dtype=np.int64)
+        middle = np.array([*tokenizer.encode(middle)], dtype=np.int64)
+        suffix = np.array([*tokenizer.encode(suffix)], dtype=np.int64)
+
+        # here we truncate each given segment to fit the same length as it was before
+        # A consequence is that we never reach the end of a file?
+        # we should rather truncate at the context-level
+        if truncate_or_pad:
+            # need to make same length as the input. Take the 3 sentinel tokens into account
+            new_length = suffix.shape[0] + prefix.shape[0] + middle.shape[0] + 3
+            diff = new_length - len(sample)
+            if diff > 0: # too long
+                if suffix.shape[0] <= diff: # if there's no space to truncate the suffix: stop and report it. atm i should have stopped this from happening
+                    return sample, np_rng
+                suffix = suffix[:suffix.shape[0] - diff]
+            elif diff < 0: # too short
+                suffix = np.concatenate([suffix, np.full((-1 * diff), pad_tok_id)])
+        
+        if np_rng.binomial(1, fim_spm_rate):
+            # SPM (variant 2 from FIM paper)
+            new_sample = np.concatenate([
+                [suffix_tok_id], suffix,
+                [prefix_tok_id], prefix,
+                [middle_tok_id], middle
+            ])
+        else:
+            # PSM
+            new_sample = np.concatenate([
+                [prefix_tok_id], prefix,
+                [suffix_tok_id], suffix,
+                [middle_tok_id], middle
+            ])
+    else:
+        # don't do FIM preproc
+        new_sample = sample
+
+    return list(new_sample), np_rng
 
 class ConstantLengthDataset(IterableDataset):
     """
@@ -88,6 +165,8 @@ class ConstantLengthDataset(IterableDataset):
         num_of_sequences=1024,
         chars_per_token=3.6,
         content_field="content",
+        fim_rate=0.5,
+        fim_spm_rate=0.5
     ):
         self.tokenizer = tokenizer
         self.concat_token_id = (
@@ -99,6 +178,8 @@ class ConstantLengthDataset(IterableDataset):
         self.current_size = 0
         self.max_buffer_size = seq_length * chars_per_token * num_of_sequences
         self.content_field = content_field
+        self.fim_rate = fim_rate
+        self.fim_spm_rate = fim_spm_rate
 
     def __iter__(self):
         iterator = iter(self.dataset)
@@ -119,7 +200,13 @@ class ConstantLengthDataset(IterableDataset):
                         break
             tokenized_inputs = self.tokenizer(buffer, truncation=False)["input_ids"]
             all_token_ids = []
+
+            np_rng = np.random.RandomState(seed=555)
             for tokenized_input in tokenized_inputs:
+                # optionally do FIM permutations
+                if self.fim_rate > 0:
+                    tokenized_input, np_rng = permute(tokenized_input, np_rng, self.tokenizer, fim_rate=self.fim_rate, fim_spm_rate=self.fim_spm_rate, truncate_or_pad=False)
+                
                 all_token_ids.extend(tokenized_input + [self.concat_token_id])
             for i in range(0, len(all_token_ids), self.seq_length):
                 input_ids = all_token_ids[i : i + self.seq_length]
@@ -161,6 +248,8 @@ def create_datasets(tokenizer, args):
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
         content_field=args.data_column,
+        fim_rate=args.fim_rate,
+        fim_spm_rate=args.fim_spm_rate
     )
     valid_dataset = ConstantLengthDataset(
         tokenizer,
@@ -169,6 +258,8 @@ def create_datasets(tokenizer, args):
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
         content_field=args.data_column,
+        fim_rate=args.fim_rate,
+        fim_spm_rate=args.fim_spm_rate
     )
     return train_dataset, valid_dataset
 
@@ -220,6 +311,8 @@ def run_training(args, train_data, val_data):
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_auth_token=True)
     train_dataset, eval_dataset = create_datasets(tokenizer, args)
+    # data = next(iter(eval_dataset))
+    # breakpoint()
     run_training(args, train_dataset, eval_dataset)
 
 
