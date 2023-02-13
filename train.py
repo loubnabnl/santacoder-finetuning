@@ -80,8 +80,8 @@ def get_fim_token_ids(tokenizer):
     return suffix_tok_id, prefix_tok_id, middle_tok_id, pad_tok_id
 
 
-# Adapted from https://github.com/bigcode-project/Megatron-LM/blob/6c4bf908df8fd86b4977f54bf5b8bd4b521003d1/megatron/data/gpt_dataset.py
-def permute(sample, np_rng, tokenizer, fim_rate=0.5, fim_spm_rate=0.5, truncate_or_pad=True):
+## Adapted from https://github.com/bigcode-project/Megatron-LM/blob/6c4bf908df8fd86b4977f54bf5b8bd4b521003d1/megatron/data/gpt_dataset.py
+def permute(sample, np_rng, tokenizer, fim_rate=0.5, fim_spm_rate=0.5, truncate_or_pad=False):
     """
     Take in a sample (np array w/ size (0,chunklength)) and perform a FIM transformation on it. 
     Maintain the same sample length (if transform creates a few extra tokens, drop them).
@@ -90,26 +90,20 @@ def permute(sample, np_rng, tokenizer, fim_rate=0.5, fim_spm_rate=0.5, truncate_
     suffix_tok_id, prefix_tok_id, middle_tok_id, pad_tok_id, = get_fim_token_ids(tokenizer)
 
     if np_rng.binomial(1, fim_rate): # sample bernoulli dist
-        contents = tokenizer.decode(sample)
-
         try:
             # A boundary can be =0 (prefix will be empty)
             # a boundary can be =len(contents) (suffix will be empty)
             # The two boundaries can be equal (middle will be empty)
-            boundaries = list(np_rng.randint(low=0, high=len(contents) + 1, size=2))
+            boundaries = list(np_rng.randint(low=0, high=len(sample) + 1, size=2))
             boundaries.sort()
         except ValueError as e:
-            print(len(contents), contents)
+            print(len(sample), sample)
             print(e)
             raise e
 
-        prefix = contents[:boundaries[0]]
-        middle = contents[boundaries[0]:boundaries[1]]
-        suffix = contents[boundaries[1]:]
-
-        prefix = np.array([*tokenizer.encode(prefix)], dtype=np.int64)
-        middle = np.array([*tokenizer.encode(middle)], dtype=np.int64)
-        suffix = np.array([*tokenizer.encode(suffix)], dtype=np.int64)
+        prefix = np.array(sample[:boundaries[0]], dtype=np.int64)
+        middle = np.array(sample[boundaries[0]:boundaries[1]], dtype=np.int64)
+        suffix = np.array(sample[boundaries[1]:], dtype=np.int64)
 
         # here we truncate each given segment to fit the same length as it was before
         # A consequence is that we never reach the end of a file?
