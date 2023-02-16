@@ -122,9 +122,8 @@ def permute(sample, np_rng, tokenizer, fim_rate=0.5, fim_spm_rate=0.5, truncate_
         if np_rng.binomial(1, fim_spm_rate):
             # SPM (variant 2 from FIM paper)
             new_sample = np.concatenate([
-                [suffix_tok_id], suffix,
-                [prefix_tok_id], prefix,
-                [middle_tok_id], middle
+                [prefix_tok_id, suffix_tok_id], suffix,
+                [middle_tok_id], prefix, middle
             ])
         else:
             # PSM
