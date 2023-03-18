@@ -4,6 +4,7 @@ Fine-Tune SantaCoder on code/text dataset
 
 import argparse
 import os
+import random
 
 import torch
 from datasets import load_dataset
