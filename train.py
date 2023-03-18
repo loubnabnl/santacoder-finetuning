@@ -123,15 +123,18 @@ class ConstantLengthDataset(IterableDataset):
             all_token_ids = []
             for tokenized_input in tokenized_inputs:
                 all_token_ids.extend(tokenized_input + [self.concat_token_id])
+            examples = []
             for i in range(0, len(all_token_ids), self.seq_length):
                 input_ids = all_token_ids[i : i + self.seq_length]
                 if len(input_ids) == self.seq_length:
-                    self.current_size += 1
-                    yield {
-                        "input_ids": torch.LongTensor(input_ids),
-                        "labels": torch.LongTensor(input_ids),
+                    examples.append(input_ids)
+            random.shuffle(examples)
+            for example in examples:
+                self.current_size += 1
+                yield {
+                        "input_ids": torch.LongTensor(example),
+                        "labels": torch.LongTensor(example),
                     }
-
 
 def create_datasets(tokenizer, args):
     dataset = load_dataset(
