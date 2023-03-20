@@ -56,8 +56,8 @@ def get_args():
     parser.add_argument("--eval_freq", default=1000, type=int)
     parser.add_argument("--save_freq", default=1000, type=int)
 
-    parser.add_argument("--fim_rate", type=float, default=0.5)
-    parser.add_argument("--fim_spm_rate", type=float, default=0.5)
+    parser.add_argument("--fim_rate", type=float, default=0)
+    parser.add_argument("--fim_spm_rate", type=float, default=0)
     return parser.parse_args()
 
 
@@ -121,6 +121,9 @@ class ConstantLengthDataset(IterableDataset):
             self.middle_tok_id,
             self.pad_tok_id,
         ) = fim.get_fim_token_ids(self.tokenizer)
+        if not self.suffix_tok_id and self.fim_rate > 0:
+            print("FIM is not supported by tokenizer, disabling FIM")
+            self.fim_rate = 0
 
     def __iter__(self):
         iterator = iter(self.dataset)
