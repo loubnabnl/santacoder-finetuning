@@ -5,6 +5,7 @@ Fine-Tune SantaCoder on code/text dataset
 import argparse
 import os
 
+import numpy as np
 import torch
 from datasets import load_dataset
 from torch.utils.data import IterableDataset
@@ -19,6 +20,8 @@ from transformers import (
     set_seed,
 )
 
+import fim
+
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -30,7 +33,6 @@ def get_args():
     parser.add_argument("--streaming", action="store_true")
     parser.add_argument("--shuffle_buffer", type=int, default=5000)
     parser.add_argument("--data_column", type=str, default="content")
-
 
     parser.add_argument("--seq_length", type=int, default=1024)
     parser.add_argument("--max_steps", type=int, default=10000)
@@ -53,7 +55,9 @@ def get_args():
     parser.add_argument("--log_freq", default=1, type=int)
     parser.add_argument("--eval_freq", default=1000, type=int)
     parser.add_argument("--save_freq", default=1000, type=int)
-    
+
+    parser.add_argument("--fim_rate", type=float, default=0.5)
+    parser.add_argument("--fim_spm_rate", type=float, default=0.5)
     return parser.parse_args()
 
 
@@ -79,6 +83,9 @@ class ConstantLengthDataset(IterableDataset):
             seq_length (int): Length of token sequences to return.
             num_of_sequences (int): Number of token sequences to keep in buffer.
             chars_per_token (int): Number of characters per token used to estimate number of tokens in text buffer.
+            fim_rate (float): Rate (0.0 to 1.0) that sample will be permuted with FIM.
+            fim_spm_rate (float): Rate (0.0 to 1.0) of FIM permuations that will use SPM.
+            seed (int): Seed for random number generator.
     """
 
     def __init__(
@@ -90,6 +97,9 @@ class ConstantLengthDataset(IterableDataset):
         num_of_sequences=1024,
         chars_per_token=3.6,
         content_field="content",
+        fim_rate=0.5,
+        fim_spm_rate=0.5,
+        seed=0,
     ):
         self.tokenizer = tokenizer
         self.concat_token_id = (
@@ -101,6 +111,16 @@ class ConstantLengthDataset(IterableDataset):
         self.current_size = 0
         self.max_buffer_size = seq_length * chars_per_token * num_of_sequences
         self.content_field = content_field
+        self.fim_rate = fim_rate
+        self.fim_spm_rate = fim_spm_rate
+        self.seed = seed
+
+        (
+            self.suffix_tok_id,
+            self.prefix_tok_id,
+            self.middle_tok_id,
+            self.pad_tok_id,
+        ) = fim.get_fim_token_ids(self.tokenizer)
 
     def __iter__(self):
         iterator = iter(self.dataset)
@@ -121,7 +141,23 @@ class ConstantLengthDataset(IterableDataset):
                         break
             tokenized_inputs = self.tokenizer(buffer, truncation=False)["input_ids"]
             all_token_ids = []
+
+            np_rng = np.random.RandomState(seed=self.seed)
             for tokenized_input in tokenized_inputs:
+                # optionally do FIM permutations
+                if self.fim_rate > 0:
+                    tokenized_input, np_rng = fim.permute(
+                        tokenized_input,
+                        np_rng,
+                        self.suffix_tok_id,
+                        self.prefix_tok_id,
+                        self.middle_tok_id,
+                        self.pad_tok_id,
+                        fim_rate=self.fim_rate,
+                        fim_spm_rate=self.fim_spm_rate,
+                        truncate_or_pad=False,
+                    )
+
                 all_token_ids.extend(tokenized_input + [self.concat_token_id])
             for i in range(0, len(all_token_ids), self.seq_length):
                 input_ids = all_token_ids[i : i + self.seq_length]
@@ -163,6 +199,9 @@ def create_datasets(tokenizer, args):
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
         content_field=args.data_column,
+        fim_rate=args.fim_rate,
+        fim_spm_rate=args.fim_spm_rate,
+        seed=args.seed,
     )
     valid_dataset = ConstantLengthDataset(
         tokenizer,
@@ -171,7 +210,11 @@ def create_datasets(tokenizer, args):
         seq_length=args.seq_length,
         chars_per_token=chars_per_token,
         content_field=args.data_column,
+        fim_rate=args.fim_rate,
+        fim_spm_rate=args.fim_spm_rate,
+        seed=args.seed,
     )
+
     return train_dataset, valid_dataset
 
 
@@ -222,12 +265,13 @@ def run_training(args, train_data, val_data):
 
 def main(args):
     tokenizer = AutoTokenizer.from_pretrained(args.model_path, use_auth_token=True)
+
     train_dataset, eval_dataset = create_datasets(tokenizer, args)
+
     run_training(args, train_dataset, eval_dataset)
 
 
 if __name__ == "__main__":
-
     args = get_args()
     set_seed(args.seed)
     os.makedirs(args.output_dir, exist_ok=True)
