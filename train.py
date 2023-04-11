@@ -4,6 +4,7 @@ Fine-Tune SantaCoder on code/text dataset
 
 import argparse
 import os
+import random
 
 import numpy as np
 import torch
@@ -162,15 +163,18 @@ class ConstantLengthDataset(IterableDataset):
                     )
 
                 all_token_ids.extend(tokenized_input + [self.concat_token_id])
+            examples = []
             for i in range(0, len(all_token_ids), self.seq_length):
                 input_ids = all_token_ids[i : i + self.seq_length]
                 if len(input_ids) == self.seq_length:
-                    self.current_size += 1
-                    yield {
-                        "input_ids": torch.LongTensor(input_ids),
-                        "labels": torch.LongTensor(input_ids),
+                    examples.append(input_ids)
+            random.shuffle(examples)
+            for example in examples:
+                self.current_size += 1
+                yield {
+                        "input_ids": torch.LongTensor(example),
+                        "labels": torch.LongTensor(example),
                     }
-
 
 def create_datasets(tokenizer, args):
     dataset = load_dataset(
@@ -190,6 +194,7 @@ def create_datasets(tokenizer, args):
         dataset = dataset.train_test_split(test_size=0.005, seed=args.seed)
         train_data = dataset["train"]
         valid_data = dataset["test"]
+        train_data = train_data.shuffle(seed=args.seed)
         print(
             f"Size of the train set: {len(train_data)}. Size of the validation set: {len(valid_data)}"
         )
